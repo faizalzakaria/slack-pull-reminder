@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 
 import requests
 from github3 import login
@@ -63,14 +64,37 @@ def is_valid_labels(labels):
 
     return False
 
+def is_open(state):
+    if state in 'open':
+        return True
+
+    return False
+
+def is_approved(labels):
+    for label in labels:
+        lowercase_label = label['name'].lower()
+        if lowercase_label in 'approved':
+            return True
+
+    return False
+
+def duration(created_at):
+    current_date = datetime.now().replace(tzinfo=None)
+    return (current_date - created_at.replace(tzinfo=None)).days
+
 def format_pull_requests(pull_requests, owner, repository):
     lines = []
 
     for pull in pull_requests:
-        if is_valid_title(pull.title) and is_valid_labels(pull.labels):
+        if is_valid_title(pull.title) and is_valid_labels(pull.labels) and is_open(pull.state):
             creator = pull.user.login
-            line = '*[{0}/{1}]* <{2}|{3} - by {4}>'.format(
-                owner, repository, pull.html_url, pull.title, creator)
+            line = "*[{0}/{1}]* <{2}|{3} by {4}> - *since {5} day(s)*".format(
+                owner, repository, pull.html_url, pull.title, creator, duration(pull.created_at))
+
+            if is_approved(pull.labels):
+                line = "{0} - *approved*".format(line)
+
+            print(pull.statuses_url)
             lines.append(line)
 
     return lines
